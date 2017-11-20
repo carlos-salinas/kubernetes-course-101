@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Kubernetes Course 101</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      h1 {
+        color: #0595db;
+      }
+      :not(.inverse).remark-slide-content:after {
+        content: "";
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        height: 40px;
+        width: 120px;
+        background-repeat: no-repeat;
+        background-size: contain;
+        background-image: url(resources/logo.svg);
+      }
+      .inverse {
+          background: #0595db;
+          color: #fff;
+          text-shadow: 0 0 20px #055edb;
+      }
+      .inverse h1, .inverse h2 {
+          color: #f3f3f3;
+          line-height: 0.8em;
+      }
+      .remark-slide-content h1 {
+          font-size: 3em;
+      }
+      .smaller-font {
+        font-size: 0.8em;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+      class: center, middle, inverse
+
+      <img src="resources/name_white.svg" style="width: 350px"/>
+
+      #  Course 101
+      ## The Basics
+      ## Author: **Carlos Salinas**
+
+      ---
+
+      # Course Content
+
+      - What is Kubernetes?
+      - **Introduction to Kubernetes**
+      - The basics
+      - Advanced topics
+      - Administration
+
+      ---
+
+      # The basics: Arquitecture
+
+      <img src="resources/kubernetes-architecture.png" style="width: 650px">
+
+      ---
+
+      # The basics: Arquitecture
+
+      - Master components
+        - apiserver: front-end API consumed by kubectl
+        - etcd: key-value database which stores the cluster state
+        - controller-manager: different process responsible to node mantainance and
+          replication, among other tasks.
+        - scheduler: watches newly created pods that have no node assigned, and
+          selects a node for them to run on.
+      - Node components
+        - Kubelet starts/stops pods
+        - Kube-proxy is a network proxy giving access to the node from outside
+
+        Official documentation [here](https://kubernetes.io/docs/concepts/overview/components/)
+
+      ---
+
+      # The basics: Scale pods
+
+      * In **k8s** can scale horizontally stateless apps, e.g. no attached to a database
+      * Scalling can be done using *Replication Controller*
+      * The replication controller will ensure that a specified number of pod
+        replicas will run at any time
+      * Using the replication controller is recommended with 1 replicas to ensure
+        availability after reboots
+
+      ---
+
+      # The basics: Scale pods
+
+      ```bash
+      apiVersion: v1
+      kind: ReplicationController
+      metadata:
+        name: scaling-first-app
+      spec:
+        replicas: 2
+        selector:
+          app: scaling-first-app
+        template:
+          metadata:
+            labels:
+              app: scaling-first-app
+          spec:
+            containers:
+            - name: first-app
+              image: casalinas83/first-app
+              ports:
+              - name: nodejs-port
+                containerPort: 8080
+      ```
+
+      ---
+
+      # The basics: Scale pods
+
+      Lets deploy 2 replicas of the first app
+
+      ```bash
+      cat scaling/scaling-first-app.yml
+
+      kubectl create -f scaling/scaling-first-app.yml
+
+      kubectl get replicationcontroller```
+
+      Check that the pod was created by replicationcontroller
+
+      ```bash
+      kubectl describe pod scaling-first-app-c1867 | grep Controller```
+
+      ---
+
+      # The basics: Scale pods
+
+      Try to delete one of the two pods
+
+      ```bash
+      kubectl delete pod scaling-first-app-<RANDOM>```
+
+      Lets scale out the same app
+
+      ```bash
+      kubectl scale --replicas 4 replicationcontroller scaling-first-app
+
+      kubectl get pod```
+
+      Delete the ReplicationController
+
+      ```bash
+      kubectl delete replicationcontroller scaling-first-app```
+
+      ---
+
+      # The basics: Deployments
+
+      - Declaration which allows to do app deployments and updates
+      - It relies on replica sets which are the next gen of replicaControllers
+      - In the deployment you define the state of your app, e.g. number of replicas,
+        and k8s will always match that state
+      - The deployment objects are easier and more options to deploy an app than
+        using only *replicateController* or *replica set*
+
+      ---
+
+      # The basics: Deployments
+
+      Options:
+        - Create
+        - Update a new version
+        - Progresive updates (zero downtime)
+        - Roll back to a previous version
+        - Pause/ Resume
+
+      ---
+
+      # The basics: Deployments
+
+      ```js
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        name: first-app-deployment
+      spec:
+        replicas: 3
+        template:
+          metadata:
+            labels:
+              app: first-app
+          spec:
+            containers:
+            - name: first-app
+              image: casalinas83/first-app
+              ports:
+              - name: nodejs-port
+                containerPort: 8080```
+
+      ---
+
+      # The basics: Deployments
+
+      Lets create a deployment
+
+      ```bash
+      kubectl create -f deployments/deployment-first-app.yml
+
+      kubectl get deployment
+
+      kubectl get replicaset
+
+      kubectl get pod --show-labels```
+
+      Another way to check its Status
+
+      ```bash
+      kubectl rollout status deployment first-app-deployment```
+
+      Access to any pod of the deployment
+
+      ```bash
+      kubectl exec -it first-app-deployment-<RANDOM> /bin/bash
+
+      curl http:localhost:8080
+
+      ```
+
+      ---
+
+      # The basics: Deployments
+
+      Lets update the deployment with a new app version
+
+      ```bash
+      ubectl set image deployment/first-app-deployment first-app=casalinas83/first-app:v2
+
+      kubectl rollout status deployment first-app-deployment```
+
+      Check the rollout history
+
+      ```bash
+      kubectl rollout history deployment/first-app-deployment```
+
+
+      Undo last deployment
+
+       ```bash
+       kubectl rollout undo deployment/first-app-deployment
+
+       ```
+
+      ---
+
+      # The basics: Services
+
+      - The pods come and go in Kubernetes
+      - For the previous reason, they shouldn't be never hit directly
+      - The service brigdes between the ephemeral pods and other users or services
+
+      ---
+
+      # The basics: Services
+
+      You can create a service executing the command:
+
+      ```bash
+      kubectl expose ....```
+
+      There are several types:
+      - ClusterIP: virtual IP only accessable within the cluster (default)
+      - NodePort: A port that is the same on each node that is also reachable
+        externally
+      - LoadBalancer: Created by the cloud provider, e.g. ELB in AWS, will route
+        external traffic to every node on the NodePort.
+
+      ---
+      # The basics: Services
+
+      ```js
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: first-app
+        labels:
+          app: first-app
+      spec:
+        containers:
+        - name: first-app
+          image: casalinas83/first-app
+          ports:
+          - name: nodejs-port
+            containerPort: 8080```
+
+      ---
+
+      # The basics: Services
+
+      Lets create a service for first-app
+
+      ```bash
+      kubectl create --filename first-app/first-app.yml
+
+      kubectl create --filename services/first-app-service.yml
+
+      kubectl get service
+
+      minikube minikube service first-app --url
+      ```
+
+      ---
+
+      # The basics: Web UI
+
+      - The web ui can be used instead of kubectl
+      - Lets install it first
+
+      ```bash
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+      ```
+
+      Access to the dashboard
+      ```bash
+      kubectl proxy```
+
+      http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/namespace?namespace=default
+
+      For further information about the dashboard follow the [link](https://github.com/kubernetes/dashboard)
+
+      ---
+
+      class: center, middle
+
+      # Q & A
+
+      ---
+
+      class: center, middle
+
+      # Thanks
+
+    </textarea>
+    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>

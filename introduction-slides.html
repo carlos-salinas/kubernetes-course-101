@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Kubernetes Course 101</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      h1 {
+        color: #0595db;
+      }
+      :not(.inverse).remark-slide-content:after {
+        content: "";
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        height: 40px;
+        width: 120px;
+        background-repeat: no-repeat;
+        background-size: contain;
+        background-image: url(resources/logo.svg);
+      }
+      .inverse {
+          background: #0595db;
+          color: #fff;
+          text-shadow: 0 0 20px #055edb;
+      }
+      .inverse h1, .inverse h2 {
+          color: #f3f3f3;
+          line-height: 0.8em;
+      }
+      .remark-slide-content h1 {
+          font-size: 3em;
+      }
+      .smaller-font {
+        font-size: 0.8em;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+      class: center, middle, inverse
+
+      <img src="resources/name_white.svg" style="width: 350px"/>
+
+      #  Course 101
+      ## Author: **Carlos Salinas**
+
+      ---
+
+      # Course Content
+
+      - **What is Kubernetes?**
+      - Introduction to Kubernetes
+      - The basics
+      - Advanced topics
+      - Administration
+
+      ---
+
+      # What is Kubernetes?
+
+      > Kubernetes is an open-source platform designed to automate deploying,
+      > scaling, and operating application containers.
+
+      > The name Kubernetes originates from Greek, meaning helmsman or pilot,
+      > and is the root of governor and cybernetic. K8s is an abbreviation
+      > derived by replacing the 8 letters “ubernete” with “8”.
+
+      Kubernetes.io
+
+      ---
+
+      # What is Kubernetes?
+
+      - It is based on the experience of Google working with containers for more
+      that 10 years using **Borg**.
+      - It can manage containers in a cluster or machines
+      - Some other orchestrators are [Docker Swarm](https://github.com/docker/swarm) and [Apache Mesos](http://mesos.apache.org/)
+      - Kubernetes can run anywhere:
+        - On-premise
+        - Public Cloud, e.g. Google Cloud Platform, Amazon Web Services and Microsoft Azure
+        - Hybrid
+
+
+      ---
+
+      # Introduction to Kubernetes: Setup
+
+      - There are different ways to use **K8s**:
+        - In your localhost with [minikube](https://github.com/kubernetes/minikube) (cluster of a single machine)
+        - On AWS, using [kops](https://github.com/kubernetes/kops)
+        - As a service, e.g. Microsoft Azure or IBM Bluemix Container Services
+
+      - Running on the Cloud there may be certain features not supported due missing
+        integration with that provider.
+        e.g. *Volumes* and *load balancers*
+
+      ---
+
+      # Introduction to Kubernetes: MiniKube
+
+      > Minikube is a tool that makes it easy to run Kubernetes locally.
+      > Minikube runs a single-node Kubernetes cluster inside a VM on your laptop
+      > for users looking to try out Kubernetes or develop with it day-to-day.
+
+      Minikube Github
+
+      ---
+
+      # Introduction to Kubernetes: MiniKube
+
+      - Tools installation
+        - K8s CLI [kubctl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+        - A supported virtualization software, [virtualbox](https://www.virtualbox.org/)
+        - Finally, to install **minikube** in your laptop follow the [link](https://github.com/kubernetes/minikube)
+
+      ---
+
+      # Introduction to Kubernetes: Kops
+
+      > We like to think of it as kubectl for clusters.
+
+      > Kops helps you create, destroy, upgrade and maintain production-grade,
+      > highly available, Kubernetes clusters from the command line.
+      > AWS (Amazon Web Services) is currently officially supported,
+      > with GCE in beta support , and VMware vSphere in alpha, and other
+      > platforms planned.
+
+      Kops Github.
+
+      ---
+
+      # Introduction to Kubernetes: Kops
+
+      Simple installation with one master and 2 nodes in **AWS**
+
+      1. Create an S3 Bucket to store the cluster state
+
+        ```bash
+        aws s3 mb s3://des.carlossalinas.io
+
+        export KOPS_STATE_STORE=s3://k8s.des.carlossalinas.io```
+
+      2. Create cluster configuration
+
+        ```bash
+        kops create cluster \
+          --zones=eu-central-1a \
+          --ssh-public-key ~/.ssh/kops.pub \
+          des.carlossalinas.io```
+
+      3. Finally create the cluster
+
+        ```bash
+        kops update cluster des.carlossalinas.io --yes
+        ```
+
+      ---
+
+      # Introduction to Kubernetes: Kops
+
+      The installation takes a while. But you can validate the progress
+
+        ```bash
+        kops validate cluster
+
+        kubectl get nodes --show-labels```
+
+
+      Futher details of an AWS installation [here](https://github.com/kubernetes/kops/blob/master/docs/aws.md).
+
+      ---
+
+      # Introduction to Kubernetes: First app
+
+      To launch a Docker container, based on image, a pod definition is needed
+        - A pod describes an application running in Kubernetes
+        - A pod may contain one or more containers
+        - Those container can easilly communicate within the pod using local ports
+
+      ---
+
+      # Introduction to Kubernetes: First app
+
+      Example of a simple pod definition:
+
+      ```js
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: first-app
+        labels:
+          app: first-app
+      spec:
+        containers:
+        - name: first-app1
+          image: casalinas83/first-app
+          ports:
+          - name: nodejs-port
+            containerPort: 8080```
+
+      ---
+
+      # Introduction to Kubernetes: First app
+
+      Lets deploy first-app in k8s
+
+      ```bash
+      kubectl create -f first-app/first-app.yml
+
+      kubectl get pod
+
+      kubectl exec -it firstapp /bin/bash
+
+      curl http://localhost:8080
+
+      exit
+
+      kubectl delete pod firstapp
+
+      kubectl delete service firstapp-service```
+
+      ---
+
+      # Introduction to Kubernetes: First app
+
+      Lets make the app reachable outside
+
+      ```bash
+      kubectl expose pod firstapp \
+        --type=NodePort \
+        --name firstapp-service
+
+      kubectl get service
+
+      minikube service firstapp-service --url```
+
+      ---
+
+      # Introduction to Kubernetes: Summary
+
+      - Installed all the tools we need
+      - Deployed our first app in minikube
+
+      ---
+
+      class: center, middle
+
+      # Q & A
+
+      ---
+
+      class: center, middle
+
+      # Thanks
+
+    </textarea>
+    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
